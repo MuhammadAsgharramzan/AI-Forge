@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+:root {
+  /* Dark Theme by Default (based on screenshot) */
+  --background: #0f172a; /* Slate 900 */
+  --foreground: #f8fafc; /* Slate 50 */
+
+  /* Purple/Pink Gradient Primary */
+  --primary: #a855f7; /* Purple 500 */
+  --primary-foreground: #ffffff;
+  
+  /* Slate Secondary */
+  --secondary: #1e293b; /* Slate 800 */
+  --secondary-foreground: #f8fafc;
+
+  /* Accent Green/Neon */
+  --accent: #22c55e; /* Green 500 */
+  --accent-foreground: #020617;
+
+  /* Muted Text */
+  --muted: #334155; /* Slate 700 */
+  --muted-foreground: #94a3b8; /* Slate 400 */
+
+  /* Cards */
+  --card: #1e293b; /* Slate 800 */
+  --card-foreground: #f8fafc;
+
+  /* Borders */
+  --border: #334155; /* Slate 700 */
+
+  --radius: 0.5rem;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), sans-serif;
+  antialiased: true;
+}
+
+/* Custom Utilities */
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-image: linear-gradient(to right, #a855f7, #ec4899);
+}
+
+.bg-gradient-primary {
+  background-image: linear-gradient(to right, #a855f7, #ec4899);
+}
