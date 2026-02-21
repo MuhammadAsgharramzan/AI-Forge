@@ -1,23 +1,30 @@
 import { ButtonHTMLAttributes, forwardRef } from "react";
+import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: "primary" | "secondary" | "outline" | "ghost" | "link";
+    variant?: "primary" | "secondary" | "outline" | "ghost" | "link" | "default" | "destructive";
     size?: "default" | "sm" | "lg" | "icon";
+    asChild?: boolean;
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ className, variant = "primary", size = "default", ...props }, ref) => {
+    ({ className, variant = "primary", size = "default", asChild = false, ...props }, ref) => {
+        const Comp = asChild ? Slot : "button";
         return (
-            <button
+            <Comp
                 ref={ref}
                 className={cn(
-                    "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+                    "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
                     {
                         "bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 shadow-lg shadow-purple-500/20":
                             variant === "primary",
+                        "bg-primary text-primary-foreground shadow hover:bg-primary/90":
+                            variant === "default",
                         "bg-secondary text-secondary-foreground hover:bg-secondary/80":
                             variant === "secondary",
+                        "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm":
+                            variant === "destructive",
                         "border border-input bg-transparent hover:bg-accent hover:text-accent-foreground":
                             variant === "outline",
                         "hover:bg-accent hover:text-accent-foreground": variant === "ghost",

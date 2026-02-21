@@ -5,25 +5,56 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Clock, User, ShieldCheck } from "lucide-react"; // Import missing icons
+import { Loader2, ArrowLeft, Clock, User, ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
 export default function AuctionDetailPage() {
     const params = useParams();
     const id = params.id as string;
     const router = useRouter();
-    const { data: session } = useSession(); // To check if logged in (for bidding) - though functionality mock for now
+    const { data: session } = useSession();
 
-    // Fetch auction details
-    const { data: auction, isLoading, error } = trpc.auction.getById.useQuery({ id });
+    // Fetch auction details with polling
+    const { data: auction, isLoading, error, refetch } = trpc.auction.getById.useQuery(
+        { id },
+        { refetchInterval: 5000 }
+    );
 
-    // State for gallery
+    // Mutation
+    const placeBidMutation = trpc.auction.placeBid.useMutation({
+        onSuccess: () => {
+            toast.success("Bid placed successfully!");
+            setBidAmount("");
+            refetch();
+        },
+        onError: (err) => {
+            toast.error(err.message);
+        }
+    });
+
+    // State
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const [bidAmount, setBidAmount] = useState<string>("");
+
+    const handleBid = () => {
+        if (!bidAmount) return;
+        const amount = parseFloat(bidAmount);
+        if (isNaN(amount)) {
+            toast.error("Invalid bid amount");
+            return;
+        }
+
+        placeBidMutation.mutate({
+            auctionId: id,
+            amount: amount,
+        });
+    };
 
     if (isLoading) {
         return (
@@ -47,6 +78,7 @@ export default function AuctionDetailPage() {
     const primaryImage = auction.images[selectedImageIndex] || auction.images[0];
     const timeLeft = formatDistanceToNow(new Date(auction.endsAt), { addSuffix: true });
     const isEnded = new Date(auction.endsAt) < new Date();
+    const minBid = auction.currentPrice + 1;
 
     return (
         <div className="container mx-auto py-8 space-y-8">
@@ -79,7 +111,7 @@ export default function AuctionDetailPage() {
                         </div>
                         {auction.images.length > 1 && (
                             <div className="flex gap-2 overflow-x-auto pb-2">
-                                {auction.images.map((img, i) => (
+                                {auction.images.map((img: any, i: number) => (
                                     <button
                                         key={img.id}
                                         className={`relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-md border-2 ${i === selectedImageIndex ? "border-primary" : "border-transparent"
@@ -119,7 +151,7 @@ export default function AuctionDetailPage() {
                         <div className="border-t pt-4">
                             <h3 className="font-semibold mb-2">Tags</h3>
                             <div className="flex flex-wrap gap-2">
-                                {auction.tags.map((tag) => (
+                                {auction.tags.map((tag: string) => (
                                     <Badge key={tag} variant="outline" className="text-xs">
                                         #{tag}
                                     </Badge>
@@ -153,11 +185,21 @@ export default function AuctionDetailPage() {
                             {!isEnded ? (
                                 <div className="space-y-4">
                                     <div className="flex gap-2">
-                                        <Input type="number" placeholder={`Min $${auction.currentPrice + 1}`} />
-                                        <Button>Bid</Button>
+                                        <Input
+                                            type="number"
+                                            placeholder={`Min $${minBid}`}
+                                            value={bidAmount}
+                                            onChange={(e) => setBidAmount(e.target.value)}
+                                            min={minBid}
+                                            disabled={placeBidMutation.isPending}
+                                        />
+                                        <Button onClick={handleBid} disabled={placeBidMutation.isPending}>
+                                            {placeBidMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Bid
+                                        </Button>
                                     </div>
                                     <p className="text-xs text-muted-foreground text-center">
-                                        Enter ${auction.currentPrice + 1} or more
+                                        Enter ${minBid} or more
                                     </p>
                                 </div>
                             ) : (
@@ -200,7 +242,7 @@ export default function AuctionDetailPage() {
                             {auction.bids.length === 0 ? (
                                 <p className="text-sm text-muted-foreground text-center py-4">No bids history</p>
                             ) : (
-                                auction.bids.map((bid) => (
+                                auction.bids.map((bid: any) => (
                                     <div key={bid.id} className="flex justify-between items-center text-sm border-b last:border-0 pb-2 last:pb-0">
                                         <div className="flex items-center gap-2">
                                             <div className="h-6 w-6 rounded-full bg-muted overflow-hidden relative">

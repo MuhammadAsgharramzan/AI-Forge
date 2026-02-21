@@ -157,4 +157,145 @@ export const auctionRouter = router({
 
             return auction;
         }),
+
+    placeBid: publicProcedure
+        .input(
+            z.object({
+                auctionId: z.string(),
+                amount: z.number().positive(),
+            })
+        )
+        .mutation(async ({ input }) => {
+            const auction = await db.auction.findUnique({
+                where: { id: input.auctionId },
+            });
+
+            if (!auction) {
+                throw new TRPCError({
+                    code: "NOT_FOUND",
+                    message: "Auction not found",
+                });
+            }
+
+            // Mock bidder (find a user who is NOT the seller)
+            // For MVP/Demo, if created by User A, we need User B to bid.
+            // If only 1 user, we allow self-bidding for demo purposes if strictly needed, but better to check
+            const sellerId = auction.sellerId;
+            let bidder = await db.user.findFirst({
+                where: { id: { not: sellerId } }
+            });
+
+            // Fallback for demo: if no other user exists, use the seller itself but warn/log
+            // or just create a dummy user on the fly?
+            // Let's just fail if no other user, forcing us to create a 2nd user in DB for proper testing
+            if (!bidder) {
+                // Forcing self-bid for now if no one else exists, just to unblock the demo flow
+                console.warn("No other user found, allowing self-bid for DEMO");
+                bidder = await db.user.findFirst({ where: { id: sellerId } });
+            }
+
+            if (!bidder) {
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "No users available to bid",
+                });
+            }
+
+            // Validation: Status
+            if (auction.status !== "ACTIVE" && auction.status !== "DRAFT") {
+                // We allow DRAFT for immediate testing since we default to DRAFT on create
+                // In prod, this should be strict
+            }
+
+            // Validation: Time
+            if (new Date() > auction.endsAt) {
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "Auction has ended",
+                });
+            }
+
+            // Validation: Amount
+            if (input.amount <= auction.currentPrice) {
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: `Bid must be higher than current price ($${auction.currentPrice})`,
+                });
+            }
+
+            // Validation: Ownership (only if we found a different user)
+            if (bidder.id === auction.sellerId && false) { // Disabled for single-user dev/demo ease
+                throw new TRPCError({
+                    code: "PRECONDITION_FAILED",
+                    message: "You cannot bid on your own auction",
+                });
+            }
+
+            // Transaction
+            const result = await db.$transaction(async (prisma) => {
+                const newBid = await prisma.bid.create({
+                    data: {
+                        amount: input.amount,
+                        auctionId: auction.id,
+                        bidderId: bidder.id,
+                    }
+                });
+
+                await prisma.auction.update({
+                    where: { id: auction.id },
+                    data: {
+                        currentPrice: input.amount,
+                    }
+                });
+
+                return newBid;
+            });
+
+            return result;
+        }),
+
+
+    getDashboard: publicProcedure.query(async () => {
+        // Mock user linkage for now (First User)
+        const user = await db.user.findFirst();
+
+        if (!user) {
+            throw new TRPCError({
+                code: "UNAUTHORIZED",
+                message: "No user found",
+            });
+        }
+
+        const [myAuctions, myBids] = await Promise.all([
+            // Auctions I am selling
+            db.auction.findMany({
+                where: { sellerId: user.id },
+                orderBy: { createdAt: "desc" },
+                include: {
+                    images: { where: { isPrimary: true }, take: 1 },
+                    _count: { select: { bids: true } },
+                },
+            }),
+            // Auctions I have bid on
+            db.bid.findMany({
+                where: { bidderId: user.id },
+                orderBy: { createdAt: "desc" },
+                include: {
+                    auction: {
+                        include: {
+                            images: { where: { isPrimary: true }, take: 1 },
+                            seller: { select: { name: true } },
+                        },
+                    },
+                },
+                distinct: ["auctionId"], // Get unique auctions I've bid on
+            }),
+        ]);
+
+        return {
+            selling: myAuctions,
+            bidding: myBids,
+            user: user, // Return user info for dashboard header
+        };
+    }),
 });

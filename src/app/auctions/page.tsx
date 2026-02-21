@@ -19,7 +19,7 @@ export default function AuctionsPage() {
                 categoryId: categoryId,
             },
             {
-                getNextPageParam: (lastPage) => lastPage.nextCursor,
+                getNextPageParam: (lastPage: any) => lastPage.nextCursor,
             }
         );
 
@@ -84,9 +84,9 @@ export default function AuctionsPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {data?.pages.map((page, i) => (
+                            {data?.pages.map((page: any, i: number) => (
                                 <div key={i} className="contents">
-                                    {page.items.map((auction) => (
+                                    {page.items.map((auction: any) => (
                                         <AuctionCard key={auction.id} auction={auction} />
                                     ))}
                                 </div>
